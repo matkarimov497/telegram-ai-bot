@@ -1,90 +1,64 @@
 from telegram import (
     Update,
-    ReplyKeyboardMarkup,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
 )
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
+    CallbackQueryHandler,
     ContextTypes,
     filters,
 )
 
 TOKEN = "8820635879:AAEu4D8MoANRS-P5jS65p2ZX7WJnMWLgD7o"
 
-MAIN_MENU = ReplyKeyboardMarkup(
-    [
-        ["🎵 MP3 Yuklash"],
-        ["ℹ️ Yordam", "📢 Kanal"],
-        ["👤 Profil"],
-    ],
-    resize_keyboard=True,
-)
-
-CHANNEL_LINK = "https://t.me/kinolar1227"
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "🎵 MP3 Downloader Bot\n\n"
-        "Xush kelibsiz!\n\n"
-        "Video havolasini yuboring.\n"
-        "Pastdagi menyudan foydalaning 👇"
-    )
-
     await update.message.reply_text(
-        text,
-        reply_markup=MAIN_MENU,
+        "Havola yuboring."
     )
 
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-
-    if text == "🎵 MP3 Yuklash":
-        await update.message.reply_text(
-            "🔗 Video havolasini yuboring."
-        )
-        return
-
-    if text == "ℹ️ Yordam":
-        await update.message.reply_text(
-            "1. Havolani yuboring\n"
-            "2. Bot uni tekshiradi\n"
-            "3. Natijani qaytaradi"
-        )
-        return
-
-    if text == "📢 Kanal":
-        await update.message.reply_text(CHANNEL_LINK)
-        return
-
-    if text == "👤 Profil":
-        user = update.effective_user
-
-        await update.message.reply_text(
-            f"👤 Profil\n\n"
-            f"ID: {user.id}\n"
-            f"Ism: {user.first_name}"
-        )
-        return
+async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
 
     if text.startswith("http://") or text.startswith("https://"):
+        context.user_data["url"] = text
+
+        keyboard = [
+            [
+                InlineKeyboardButton("🎵 MP3", callback_data="mp3"),
+                InlineKeyboardButton("🎬 Video", callback_data="video"),
+            ]
+        ]
+
         await update.message.reply_text(
-            "✅ Havola qabul qilindi."
+            "Formatni tanlang:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        return
 
-    await update.message.reply_text(
-        "❌ Noma'lum buyruq."
-    )
+async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
+    url = context.user_data.get("url")
+
+    if query.data == "mp3":
+        await query.message.reply_text(
+            f"MP3 tanlandi.\nURL: {url}"
+        )
+
+    elif query.data == "video":
+        await query.message.reply_text(
+            f"Video tanlandi.\nURL: {url}"
+        )
 
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(button_click))
 app.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link)
 )
 
 app.run_polling()
