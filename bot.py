@@ -1,13 +1,11 @@
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+import os
+import yt_dlp
+
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
     ContextTypes,
     filters,
 )
@@ -16,49 +14,70 @@ TOKEN = "8820635879:AAEu4D8MoANRS-P5jS65p2ZX7WJnMWLgD7o"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Havola yuboring."
+        "Link yuboring.\n\n"
+        "Video uchun: link yuboring\n"
+        "Audio uchun: /mp3 link"
     )
 
-async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+async def video_download(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text
 
-    if text.startswith("http://") or text.startswith("https://"):
-        context.user_data["url"] = text
+    try:
+        await update.message.reply_text("📥 Video yuklanmoqda...")
 
-        keyboard = [
-            [
-                InlineKeyboardButton("🎵 MP3", callback_data="mp3"),
-                InlineKeyboardButton("🎬 Video", callback_data="video"),
-            ]
-        ]
+        ydl_opts = {
+            "format": "best",
+            "outtmpl": "%(title)s.%(ext)s"
+        }
 
-        await update.message.reply_text(
-            "Formatni tanlang:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
 
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+        with open(filename, "rb") as f:
+            await update.message.reply_video(f)
 
-    url = context.user_data.get("url")
+        os.remove(filename)
 
-    if query.data == "mp3":
-        await query.message.reply_text(
-            f"MP3 tanlandi.\nURL: {url}"
-        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xato: {e}")
 
-    elif query.data == "video":
-        await query.message.reply_text(
-            f"Video tanlandi.\nURL: {url}"
-        )
+async def mp3_download(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Misol:\n/mp3 https://...")
+        return
+
+    url = context.args[0]
+
+    try:
+        await update.message.reply_text("🎵 Audio yuklanmoqda...")
+
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": "%(title)s.%(ext)s"
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+
+        with open(filename, "rb") as f:
+            await update.message.reply_audio(
+                audio=f,
+                title=info.get("title", "Audio")
+            )
+
+        os.remove(filename)
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xato: {e}")
 
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button_click))
+app.add_handler(CommandHandler("mp3", mp3_download))
 app.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link)
+    MessageHandler(filters.TEXT & ~filters.COMMAND, video_download)
 )
 
 app.run_polling()
