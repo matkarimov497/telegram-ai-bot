@@ -10,6 +10,8 @@ from telegram.ext import (
     filters,
 )
 
+import os
+
 TOKEN = os.getenv("TOKEN")
 
 
