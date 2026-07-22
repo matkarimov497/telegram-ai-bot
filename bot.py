@@ -1,35 +1,60 @@
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes
+)
 import yt_dlp
 
-TOKEN = "8820635879:AAGlvYwFHMAI_NiHNyNOziupHx0JpA55urY"
+TOKEN = "8820635879:AAHZF8VYGTsj711e22MG4PHBdJHNwWP4Mv4"
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Video yoki audio link yuboring."
     )
 
+
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
     try:
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',
-            'outtmpl': '%(title)s.%(ext)s'
+            "format": "best",
+            "outtmpl": "%(title)s.%(ext)s",
+            "noplaylist": True
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
 
-        await update.message.reply_document(open(filename, "rb"))
+        with open(filename, "rb") as f:
+            await update.message.reply_document(
+                document=f,
+                filename=filename
+            )
 
     except Exception as e:
         await update.message.reply_text(f"Xato: {e}")
 
-app = Application.builder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download))
+def main():
+    app = Application.builder().token(TOKEN).build()
 
-app.run_polling()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            download
+        )
+    )
+
+    print("Bot ishga tushdi...")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
