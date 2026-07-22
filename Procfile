@@ -1,2 +1,1 @@
-
-worker: bash -c "ffmpeg -version && python bot.py"
+worker: python bot.py
