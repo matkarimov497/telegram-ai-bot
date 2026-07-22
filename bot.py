@@ -1,56 +1,35 @@
-import asyncio
-import os
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import FSInputFile
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import yt_dlp
 
-TOKEN = "8820635879:AAGVWgxQnb6OkyIDKqkCbiwVMgplzFN5if0"
+TOKEN = "8820635879:AAGlvYwFHMAI_NiHNyNOziupHx0JpA55urY"
 
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Video yoki audio link yuboring."
+    )
 
-@dp.message()
-async def download_video(message: types.Message):
-    url = message.text
-
-    if not url.startswith("http"):
-        await message.answer("Video link yuboring.")
-        return
-
-    await message.answer("📥 Video yuklanmoqda...")
-
-    ydl_opts = {
-        "format": "bestvideo+bestaudio/best",
-        "merge_output_format": "mp4",
-        "outtmpl": "downloads/%(title)s.%(ext)s",
-    }
-
-    os.makedirs("downloads", exist_ok=True)
+async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text
 
     try:
+        ydl_opts = {
+            'format': 'bestvideo+bestaudio/best',
+            'outtmpl': '%(title)s.%(ext)s'
+        }
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
 
-        files = [f for f in os.listdir("downloads") if f.endswith(".mp4")]
-
-        if files:
-            video = os.path.join("downloads", files[0])
-
-            await message.answer_video(
-                FSInputFile(video),
-                caption="✅ Eng yuqori sifatda yuklandi"
-            )
-
-            os.remove(video)
-
-        else:
-            await message.answer("❌ Video topilmadi.")
+        await update.message.reply_document(open(filename, "rb"))
 
     except Exception as e:
-        await message.answer(f"Xatolik: {e}")
+        await update.message.reply_text(f"Xato: {e}")
 
-async def main():
-    await dp.start_polling(bot)
+app = Application.builder().token(TOKEN).build()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download))
+
+app.run_polling()
