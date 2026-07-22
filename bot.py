@@ -1,90 +1,56 @@
+import asyncio
 import os
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import FSInputFile
 import yt_dlp
 
-from telegram import Update
-from telegram.ext import (
-    Application,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
+TOKEN = "8820635879:AAELgqC_8La3BemgZoCd67a8Fl_AwX9T2HU"
 
-TOKEN = "8820635879:AAFpAj-eSAJopBvakUstblyJVyD7T0dn_G8"
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
 
-os.makedirs("downloads", exist_ok=True)
+@dp.message()
+async def download_video(message: types.Message):
+    url = message.text
 
-async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text.strip()
-
-    if not url.startswith(("http://", "https://")):
-        await update.message.reply_text("Link yuboring.")
+    if not url.startswith("http"):
+        await message.answer("Video link yuboring.")
         return
 
-    await update.message.reply_text("⏳ Yuklanmoqda...")
+    await message.answer("📥 Video yuklanmoqda...")
 
-    video_file = None
-    audio_file = None
+    ydl_opts = {
+        "format": "bestvideo+bestaudio/best",
+        "merge_output_format": "mp4",
+        "outtmpl": "downloads/%(title)s.%(ext)s",
+    }
+
+    os.makedirs("downloads", exist_ok=True)
 
     try:
-        # Video
-        video_opts = {
-            "format": "best",
-            "outtmpl": "downloads/%(title)s.%(ext)s",
-            "noplaylist": True,
-        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
 
-        with yt_dlp.YoutubeDL(video_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            video_file = ydl.prepare_filename(info)
+        files = [f for f in os.listdir("downloads") if f.endswith(".mp4")]
 
-        with open(video_file, "rb") as f:
-            await update.message.reply_video(
-                video=f,
-                caption="🎬 Video"
+        if files:
+            video = os.path.join("downloads", files[0])
+
+            await message.answer_video(
+                FSInputFile(video),
+                caption="✅ Eng yuqori sifatda yuklandi"
             )
 
-        # MP3
-        audio_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": "downloads/%(title)s.%(ext)s",
-            "noplaylist": True,
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }]
-        }
+            os.remove(video)
 
-        with yt_dlp.YoutubeDL(audio_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            audio_file = os.path.splitext(
-                ydl.prepare_filename(info)
-            )[0] + ".mp3"
-
-        with open(audio_file, "rb") as f:
-            await update.message.reply_audio(
-                audio=f,
-                title=info.get("title", "MP3")
-            )
-
-        # Tozalash
-        if video_file and os.path.exists(video_file):
-            os.remove(video_file)
-
-        if audio_file and os.path.exists(audio_file):
-            os.remove(audio_file)
+        else:
+            await message.answer("❌ Video topilmadi.")
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik:\n{e}")
+        await message.answer(f"Xatolik: {e}")
 
-app = Application.builder().token(TOKEN).build()
+async def main():
+    await dp.start_polling(bot)
 
-app.add_handler(
-    MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        download
-    )
-)
-
-print("Bot ishga tushdi...")
-app.run_polling()
+if __name__ == "__main__":
+    asyncio.run(main())
