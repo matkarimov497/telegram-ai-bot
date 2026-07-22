@@ -8,8 +8,7 @@ from telegram.ext import (
 )
 import yt_dlp
 
-TOKEN = "8820635879:AAHZF8VYGTsj711e22MG4PHBdJHNwWP4Mv4"
-
+TOKEN = "8820635879:AAHMPGU_Uc63kklQ7omjLRq7ufW-BItWQNg"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -22,10 +21,11 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         ydl_opts = {
-            "format": "best",
-            "outtmpl": "%(title)s.%(ext)s",
-            "noplaylist": True
-        }
+    "format": "bestvideo+bestaudio/best",
+    "merge_output_format": "mp4",
+    "outtmpl": "%(title)s.%(ext)s",
+    "noplaylist": True,
+}
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
